@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "yourdockerhubusername/nodejs-app"
+        DOCKER_IMAGE = "dockervarun432/starbucks-app"
         DOCKER_TAG = "${BUILD_NUMBER}"
-        SONAR_SERVER = "sonarqube-server"
-        EMAIL = "yourmail@gmail.com"
+        SONAR_SERVER = "sonarqube"
+        EMAIL = "prakasharun432@gmail.com"
     }
 
     tools {
@@ -16,7 +16,7 @@ pipeline {
 
         stage('Checkout from GitHub') {
             steps {
-                git branch: 'main', url: 'https://github.com/yourusername/your-repo.git'
+                git branch: 'main', url: 'https://github.com/arunprakash432/deploy-starbucks-application-project.git'
             }
         }
 
@@ -55,6 +55,7 @@ pipeline {
 
         stage('Docker Build Image') {
             steps {
+                sh 'cd ./app'
                 sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
             }
         }
@@ -79,6 +80,7 @@ pipeline {
         stage('Kubernetes Deployment') {
             steps {
                 withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh 'cd ./kubernetes'
                     sh '''
                     kubectl apply -f manifest.yaml
                     '''
