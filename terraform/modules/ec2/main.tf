@@ -21,7 +21,7 @@ resource "aws_security_group" "sg" {
 
 resource "aws_instance" "ec2" {
   ami           = var.ami
-  instance_type = "t2.micro"
+  instance_type = "m7i-flex.large"
   key_name      = var.key_name
 
   vpc_security_group_ids = [aws_security_group.sg.id]
