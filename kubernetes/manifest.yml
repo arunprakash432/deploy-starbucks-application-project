@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: starbucks-container
-        image: dockervarun432/starbucks-app:latest
+        image: dockervarun432/starbucks-app
         ports:
         - containerPort: 3000
 ---
