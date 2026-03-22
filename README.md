@@ -957,7 +957,7 @@ All 43 screenshots are listed below, organized by category in the order they app
 
 <div align="center">
 
-**Built with ❤️ by [Arun Prakash](https://github.com/arunprakash432)**
+**Built with ❤️ by [Arunprakash K](https://github.com/arunprakash432)**
 
 ⭐ **If this project helped you, please give it a star!**
 
