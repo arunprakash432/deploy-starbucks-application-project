@@ -1,106 +1,105 @@
 pipeline {
-    agent any
 
-    environment {
-        DOCKER_IMAGE = "dockervarun432/starbucks-app"
-        DOCKER_TAG = "${BUILD_NUMBER}"
-        SONAR_SERVER = "sonarqube"
-        EMAIL = "prakasharun432@gmail.com"
+agent any
+
+environment {
+    DOCKER_IMAGE = "dockervarun432/starbucks-app"
+    DOCKER_TAG = "${BUILD_NUMBER}"
+    EMAIL = "helloarun@gmail.com"
+}
+
+tools {
+    nodejs "nodejs-18"
+}
+
+stages {
+
+stage('Checkout from GitHub') {
+    steps {
+        git branch: 'main', url: 'https://github.com/arunprakash432/deploy-starbucks-application-project.git'
     }
+}
 
-    tools {
-        nodejs "nodejs-18"
-    }
-
-    stages {
-
-        stage('Checkout from GitHub') {
-            steps {
-                git branch: 'main', url: 'https://github.com/arunprakash432/deploy-starbucks-application-project.git'
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv("${SONAR_SERVER}") {
-                    sh '''
-                    sonar-scanner \
-                    -Dsonar.projectKey=nodejs-project \
-                    -Dsonar.sources=. \
-                    -Dsonar.host.url=$SONAR_HOST_URL \
-                    -Dsonar.login=$SONAR_AUTH_TOKEN
-                    '''
-                }
-            }
-        }
-
-        stage('Install NodeJS') {
-            steps {
-                sh 'node -v'
-                sh 'npm -v'
-            }
-        }
-
-        stage('Install NPM Dependencies') {
-            steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Trivy File System Scan') {
-            steps {
-                sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL .'
-            }
-        }
-
-        stage('Docker Build Image') {
-            steps {
-                sh 'cd ./app'
-                sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
-            }
-        }
-
-        stage('Trivy Image Scan') {
-            steps {
-                sh 'trivy image --exit-code 0 --severity HIGH,CRITICAL $DOCKER_IMAGE:$DOCKER_TAG'
-            }
-        }
-
-        stage('Push Image to DockerHub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh '''
-                    echo $PASS | docker login -u $USER --password-stdin
-                    docker push $DOCKER_IMAGE:$DOCKER_TAG
-                    '''
-                }
-            }
-        }
-
-        stage('Kubernetes Deployment') {
-            steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    sh 'cd ./kubernetes'
-                    sh '''
-                    kubectl apply -f manifest.yaml
-                    '''
-                }
+stage('SonarQube Analysis') {
+    steps {
+        withSonarQubeEnv('sonarqube') {
+            withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                sh """
+                ${tool 'sonar-scanner'}/bin/sonar-scanner \
+                -Dsonar.projectKey=nodejs-project \
+                -Dsonar.sources=app \
+                -Dsonar.host.url=http://35.154.143.82:9000 \
+                -Dsonar.login=$SONAR_TOKEN
+                """
             }
         }
     }
+}
 
-    post {
-
-        success {
-            mail to: "${EMAIL}",
-            subject: "SUCCESS: Jenkins Build #${BUILD_NUMBER}",
-            body: "Deployment successful! Docker image pushed and Kubernetes deployment completed."
-        }
-
-        failure {
-            mail to: "${EMAIL}",
-            subject: "FAILED: Jenkins Build #${BUILD_NUMBER}",
-            body: "Pipeline failed. Please check Jenkins logs."
+stage('Install NPM Dependencies') {
+    steps {
+        dir('app') {
+            sh 'npm install'
         }
     }
+}
+
+stage('Trivy File System Scan') {
+    steps {
+        sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL .'
+    }
+}
+
+stage('Docker Build Image') {
+    steps {
+        dir('app') {
+            sh 'docker build -t dockervarun432/starbucks-app:latest .'
+        }
+    }
+}
+
+stage('Trivy Image Scan') {
+    steps {
+        sh 'trivy image dockervarun432/starbucks-app:latest > trivyimage.txt'
+    }
+}
+
+stage('Push Image to DockerHub') {
+    steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+            sh '''
+            echo $PASS | docker login -u $USER --password-stdin
+            docker push dockervarun432/starbucks-app:latest
+            '''
+        }
+    }
+}
+
+stage('Kubernetes Deployment') {
+    steps {
+            dir('kubernetes') {
+                sh 'aws eks update-kubeconfig --region ap-south-1 --name starbucks-eks-cluster'
+                sh 'kubectl apply -f manifest.yml'
+            }
+        }
+}
+
+}
+
+post {
+
+success {
+    mail to: "${EMAIL}",
+    subject: "SUCCESS: Jenkins Build #${BUILD_NUMBER}",
+    body: "Deployment successful! Docker image pushed and Kubernetes deployment completed."
+}
+
+failure {
+    mail to: "${EMAIL}",
+    subject: "FAILED: Jenkins Build #${BUILD_NUMBER}",
+    body: "Pipeline failed. Please check Jenkins logs."
+}
+
+}
+
 }

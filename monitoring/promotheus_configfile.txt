@@ -1,21 +1,30 @@
-- job_name: 'blackbox'
+global:
+  scrape_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "first_rules.yml"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "elb-http-monitor"
     metrics_path: /probe
     params:
-      module: [http_2xx]  # Look for a HTTP 200 response.
+      module: [http_2xx]
     static_configs:
       - targets:
-          - http://prometheus.io      # Target to probe with HTTP.
-          - http://IP:3000 # Target to probe with HTTPS.
+        - http://af8618f471800485b8f2fb3220b11636-155138246.ap-south-1.elb.amazonaws.com/
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
+      - target_label: __address__
+        replacement: localhost:9115
       - source_labels: [__param_target]
         target_label: instance
-      - target_label: __address__
-        replacement: 13.232.214.2:9115  # The blackbox exporter's real hostname.
-
-
-- job_name: node_exporter
-  static_configs:
-     - targets:
-          - 'IP:9100'
